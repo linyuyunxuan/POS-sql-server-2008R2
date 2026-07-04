@@ -1,0 +1,246 @@
+# XCL-POS 部署配置说明
+
+
+🔥 最快速部署（5分钟搞定）
+如果新旧电脑系统架构相同（都是 x64 Windows）：
+
+旧电脑：deploy/ 文件夹整体打包成 .zip
+新电脑：解压到 D:\xcl-pos\
+新电脑：安装 Node.js
+编辑 .env 填入正确的数据库 IP/密码
+双击 start.bat → 完成！
+
+
+
+
+
+
+
+## 目录结构
+
+```
+deploy/
+├── dist/             # 后端编译后的代码
+├── public/           # 前端静态文件（由后端自动托管）
+├── node_modules/     # 生产依赖（运行 npm install --production 生成）
+├── .env              # ⭐ 核心配置文件（修改数据库、端口等）
+├── package.json      # 依赖描述文件
+├── start.bat         # 一键启动脚本（双击运行）
+└── 配置说明.txt      # 本文件
+```
+
+---
+
+## 一、修改 SQL 数据库配置
+
+编辑 `.env` 文件，修改以下字段：
+
+```env
+# 数据库服务器地址（默认 127.0.0.1 即本机）
+DB_HOST=127.0.0.1
+
+# 数据库端口（SQL Server 默认 1433）
+DB_PORT=1433
+
+# 数据库登录用户名（默认 SA）
+DB_USER=SA
+
+# 数据库登录密码
+DB_PASSWORD=00300
+
+# 数据库名称（默认 SupermarketPOS）
+DB_NAME=SupermarketPOS
+```
+
+### 常见问题
+
+| 问题 | 解决方法 |
+|------|---------|
+| 连接失败 / ECONNREFUSED | 检查 SQL Server 是否启动，确认 `DB_HOST` 和 `DB_PORT` 正确 |
+| 登录失败 / Login failed | 确认 `DB_USER` 和 `DB_PASSWORD` 正确，SA 账户已启用 |
+| 数据库不存在 | 先在 SQL Server 中创建 `SupermarketPOS` 数据库，或修改为已有数据库名 |
+
+---
+
+## 二、修改服务端口配置
+
+编辑 `.env` 文件，修改：
+
+```env
+# 后端服务端口（默认 3000）
+# 改为 80 可直接用 http://域名/ 访问（无需加端口号）
+PORT=3000
+```
+
+### 端口说明
+
+| 端口 | 场景 |
+|------|------|
+| `3000` | 默认端口，访问地址 `http://服务器IP:3000` |
+| `80` | HTTP 标准端口，访问地址 `http://服务器IP`（推荐生产环境） |
+| `443` | HTTPS 标准端口（需配置 SSL 证书，需配合 Nginx/Caddy 等反向代理） |
+
+> ⚠️ 注意：Windows 下绑定 80 端口需要管理员权限运行。
+
+---
+
+## 三、修改前端访问域名（CORS 配置）
+
+编辑 `.env` 文件，修改：
+
+```env
+# 允许访问的前端域名（多个用逗号分隔，不要有空格）
+CORS_ORIGIN=http://yts.cc.cd,http://localhost:3000
+```
+
+### 场景示例
+
+```env
+# 场景1：只有域名访问
+CORS_ORIGIN=http://yts.cc.cd
+
+# 场景2：域名 + localhost（开发调试）
+CORS_ORIGIN=http://yts.cc.cd,http://localhost:3000
+
+# 场景3：多个域名
+CORS_ORIGIN=http://yts.cc.cd,http://www.yts.cc.cd
+```
+
+---
+
+## 四、修改 JWT 密钥（安全必做）
+
+**生产环境必须修改！** 否则_token 可能被伪造。
+
+编辑 `.env` 文件：
+
+```env
+# 生成新密钥（在 deploy 目录下运行）：
+# node -e "console.log(require('crypto').randomBytes(32).toString('hex'))"
+JWT_SECRET=请修改为随机字符串
+```
+
+---
+
+## 五、前端静态文件路径配置
+
+```env
+# 前端文件所在目录（相对于 start.bat 的运行目录）
+# 默认 ./public 即可，无需修改
+FRONTEND_PATH=./public
+```
+
+---
+
+## 六、启动服务
+
+### 方式一：双击启动（推荐）
+
+直接双击 `start.bat`，服务启动后不要关闭窗口。
+
+### 方式二：命令行启动
+
+```bat
+cd C:\path\to\deploy
+node dist/index.js
+```
+
+### 方式三：注册为 Windows 服务（开机自启）
+
+1. 下载 NSSM：https://nssm.cc/download
+2. 以管理员身份运行 CMD：
+   ```bat
+   nssm install XCL-POS
+   ```
+3. 在弹出窗口中设置：
+   - **Path**: `C:\Program Files\nodejs\node.exe`
+   - **Startup directory**: `C:\path\to\deploy`
+   - **Arguments**: `dist/index.js`
+4. 点击 "Install service"
+5. 启动服务：`nssm start XCL-POS`
+
+---
+
+## 七、访问系统
+
+服务启动后，根据 `PORT` 配置访问：
+
+| PORT 设置 | 访问地址 |
+|----------|---------|
+| 3000 | `http://服务器IP:3000` |
+| 80 | `http://服务器IP` 或 `http://yts.cc.cd` |
+| 3000 + 域名解析 | `http://yts.cc.cd:3000` |
+
+---
+
+## 八、域名解析配置（yts.cc.cd）
+
+### 局域网访问（hosts 方式）
+
+在客户机的 `C:\Windows\System32\drivers\etc\hosts` 文件末尾添加：
+
+```
+服务器IP    yts.cc.cd
+```
+
+例如服务器 IP 是 `192.168.1.100`：
+```
+192.168.1.100    yts.cc.cd
+```
+
+### 公网访问（DNS 解析）
+
+在域名服务商（如阿里云、腾讯云）的 DNS 解析设置中添加 A 记录：
+
+| 记录类型 | 主机记录 | 记录值 |
+|---------|---------|-------|
+| A | yts | 服务器公网IP |
+
+---
+
+## 九、配置修改后生效方法
+
+修改 `.env` 文件后，**必须重启服务**才能生效：
+
+- 如果是双击 `start.bat` 运行：关闭窗口，再双击重新启动
+- 如果是 NSSM 服务：`nssm restart XCL-POS`
+
+---
+
+## 十、常见问题排查
+
+| 问题 | 排查方法 |
+|------|---------|
+| 启动后无法访问 | 检查端口是否被占用：`netstat -ano | findstr :3000` |
+| 前端页面空白 | 检查 `public/` 目录是否有 `index.html` |
+| 数据库连不上 | 检查 SQL Server 是否允许远程连接，防火墙是否放行 1433 端口 |
+| 修改配置不生效 | 确认已重启服务，检查 `.env` 格式是否正确（不要有空格） |
+| 日志查看 | 服务运行窗口会输出所有日志，包括数据库连接的错误信息 |
+
+---
+
+## 配置文件完整示例（.env）
+
+```env
+# JWT Secret（必须修改！）
+JWT_SECRET=请修改为随机字符串
+
+# 数据库配置
+DB_HOST=127.0.0.1
+DB_PORT=1433
+DB_USER=SA
+DB_PASSWORD=00300
+DB_NAME=SupermarketPOS
+
+# 服务器端口（80 可直接访问，无需加端口号）
+PORT=3000
+
+# 环境
+NODE_ENV=production
+
+# CORS 允许的来源
+CORS_ORIGIN=http://yts.cc.cd,http://localhost:3000
+
+# 前端静态文件路径
+FRONTEND_PATH=./public
+```
